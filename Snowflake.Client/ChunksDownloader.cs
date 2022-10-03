@@ -9,6 +9,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Snowflake.Client.Model;
+using System.Linq;
 
 namespace Snowflake.Client
 {
@@ -36,15 +37,25 @@ namespace Snowflake.Client
         public static async Task<List<List<string>>> DownloadAndParseChunksAsync(ChunksDownloadInfo chunksDownloadInfo, CancellationToken ct = default)
         {
             var rowSet = new List<List<string>>();
+            var tasks = new List<Task<List<List<string>>>>();
 
             foreach (var chunk in chunksDownloadInfo.Chunks)
             {
-                var downloadRequest = BuildChunkDownloadRequest(chunk, chunksDownloadInfo.ChunkHeaders, chunksDownloadInfo.Qrmk);
-                var chunkRowSet = await GetChunkContentAsync(downloadRequest, ct);
+                var task = Task.Run(async () =>
+                {
+                    var downloadRequest = BuildChunkDownloadRequest(chunk, chunksDownloadInfo.ChunkHeaders, chunksDownloadInfo.Qrmk);
+                    return await GetChunkContentAsync(downloadRequest, ct);
+                });
 
-                rowSet.AddRange(chunkRowSet);
+                tasks.Add(task);
             }
 
+            var listOfResults = await Task.WhenAll(tasks);
+            foreach (var listOfResult in listOfResults)
+            {
+                rowSet.AddRange(listOfResult);
+            }
+            
             return rowSet;
         }
 

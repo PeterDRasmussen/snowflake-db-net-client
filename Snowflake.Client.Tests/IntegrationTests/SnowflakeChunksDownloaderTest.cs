@@ -33,9 +33,30 @@ namespace Snowflake.Client.Tests.IntegrationTests
         [Test]
         public async Task QueryAndMap_ResponseWithChunks_AndRowset()
         {
-            var selectCount = 1300;
+            var selectCount = 1350;
             var result = await _snowflakeClient.QueryAsync<Supplier>($"select top {selectCount} * from SNOWFLAKE_SAMPLE_DATA.TPCH_SF1000.SUPPLIER;");
             var records = result.ToList();
+
+            Assert.AreEqual(selectCount, records.Count);
+        }
+
+        [Test]
+        public async Task QueryAndMap_ResponseWithChunks_AndKeepOrder()
+        {
+            var selectCount = 10000;
+            var result = await _snowflakeClient.QueryAsync<Supplier>($"select top {selectCount} * from SNOWFLAKE_SAMPLE_DATA.TPCH_SF1000.SUPPLIER order by S_SUPPKEY desc;");
+            var records = result.ToList();
+
+            Supplier previous = null;
+            foreach (var current in records)
+            {
+                if (previous != null)
+                {
+                    Assert.Greater(previous.S_Suppkey, current.S_Suppkey);
+                }
+
+                previous = current;
+            }
 
             Assert.AreEqual(selectCount, records.Count);
         }
